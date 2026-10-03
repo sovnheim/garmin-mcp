@@ -213,6 +213,20 @@ def get_training_readiness(date_str: str | None = None) -> Any:
     return _call("get_training_readiness", date_str or _today())
 
 
+@mcp.tool()
+def get_training_status(date_str: str | None = None) -> Any:
+    """Get Garmin's training status for the given date: fitness trend
+    (productive/maintaining/etc.), acute/chronic training load and
+    acute:chronic workload ratio, VO2max, and the trailing 4-week "Load
+    Focus" breakdown (Low Aerobic / High Aerobic / Anaerobic load vs.
+    target ranges).
+
+    Args:
+        date_str: Date as YYYY-MM-DD. Defaults to today.
+    """
+    return _call("get_training_status", date_str or _today())
+
+
 # --- Profile & physiology -----------------------------------------------
 
 
@@ -327,6 +341,33 @@ def get_personal_records() -> Any:
     return _call("get_personal_record")
 
 
+@mcp.tool()
+def get_race_predictions(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    aggregation: str | None = None,
+) -> Any:
+    """Get Garmin's predicted race times for 5K, 10K, half marathon, and
+    marathon, based on recent training data.
+
+    Args:
+        start_date: Start date as YYYY-MM-DD. Leave unset (with end_date and
+            aggregation also unset) to get the current prediction. Cannot be
+            more than a year before end_date.
+        end_date: End date as YYYY-MM-DD. Must be set together with
+            start_date and aggregation.
+        aggregation: One of "daily" (a prediction per day in the range) or
+            "monthly" (aggregated per month). Must be set together with
+            start_date and end_date.
+    """
+    return _call(
+        "get_race_predictions",
+        startdate=start_date,
+        enddate=end_date,
+        _type=aggregation,
+    )
+
+
 # --- Training plans, workouts & schedule ---------------------------------
 
 
@@ -350,6 +391,44 @@ def get_workout(workout_id: str) -> Any:
             get_scheduled_workout.
     """
     return _call("get_workout_by_id", workout_id)
+
+
+@mcp.tool()
+def create_workout(workout: dict[str, Any], schedule_date: str | None = None) -> Any:
+    """Create a workout in Garmin Connect, unless one with the same name
+    already exists (in which case nothing is created and the existing
+    workout is returned). This WRITES to the user's Garmin account.
+
+    Args:
+        workout: Workout definition in Garmin's JSON format, i.e. the same
+            shape returned by get_workout: `workoutName`, `sportType`
+            ({sportTypeId, sportTypeKey}) and `workoutSegments` with their
+            `workoutSteps`. Use get_workout on an existing workout as a
+            template.
+        schedule_date: Optional YYYY-MM-DD date to also schedule the newly
+            created workout on. Ignored if the workout already existed.
+    """
+    name = workout.get("workoutName")
+    if not name:
+        raise ValueError("workout must include a 'workoutName'.")
+
+    start, page = 0, 100
+    while True:
+        existing = _call("get_workouts", start, page) or []
+        for w in existing:
+            if w.get("workoutName") == name:
+                return {"created": False, "workout": w}
+        if len(existing) < page:
+            break
+        start += page
+
+    created = _call("upload_workout", workout)
+    result: dict[str, Any] = {"created": True, "workout": created}
+    if schedule_date:
+        result["scheduled"] = _call(
+            "schedule_workout", created["workoutId"], schedule_date
+        )
+    return result
 
 
 @mcp.tool()

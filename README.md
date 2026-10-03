@@ -3,12 +3,14 @@
 A local MCP server that exposes your Garmin Connect activity, health, and
 training data (activities, HRV, sleep, heart rate, stress, body battery,
 training readiness, HR/power zones, lactate threshold, FTP, VO2max,
-personal records, workouts, scheduled workouts, and training plans) as
+personal records, race predictions, workouts, scheduled workouts, and
+training plans) as
 tools inside Claude Desktop.
 
 It talks directly to the live Garmin Connect API via the
 [`garminconnect`](https://github.com/cyberjunky/python-garminconnect)
-library. Data is read-only — nothing is ever written back to Garmin.
+library. Data is read-only, except `create_workout`, which adds a workout to
+your Garmin account.
 
 ## How auth works
 
@@ -89,8 +91,10 @@ your Garmin login email (not secret) is saved, in `~/.garmin_mcp/config.json`.
 | `get_resting_heart_rate` | Daily resting heart rate trend over a date range |
 | `get_fitness_age` | Garmin Fitness Age for a given date |
 | `get_personal_records` | Personal records |
+| `get_race_predictions` | Predicted race times for 5K, 10K, half marathon, marathon |
 | `list_workouts` | Saved workout templates, most recent first (paginated) |
 | `get_workout` | Full structure of one workout: segments, targets, intervals |
+| `create_workout` | Create a workout (skipped if one with the same name exists); can also schedule it |
 | `get_scheduled_workouts` | Calendar of workouts scheduled for a given month |
 | `get_scheduled_workout` | Detail for one scheduled workout instance |
 | `list_training_plans` | Training plans |
